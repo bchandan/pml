@@ -1,0 +1,77 @@
+---
+title: "PMM Model"
+author: "Chandan Basavaraju"
+date: "Monday, November 17, 2014"
+output: html_document
+---
+
+The files for PMM-training.csv and PMM-testing.csv were downloaded and then the following operations were performed:
+
+Data Cleaning: 
+
+Step 1: Load in Excel and perform cleaning up of #DIV/0! occurences in the pml-training.csv and pml-testing.csv. The output from these are pml-training_data.csv and pml-testing_data.csv respectively
+
+
+Step 2: Load the data in R 
+
+```{r}
+setwd("c:\\data")
+training<-read.csv("pml-training_data.csv")
+testing<-read.csv("pml-testing_data.csv")
+```
+
+Step 3: Removed all columns which contained a majority of NA ( > 50% )
+```{r}
+     trainingpruned<-training[,colSums(is.na(training))< nrow(training)/2]
+     testingpruned<-testing[,colSums(is.na(testing))< nrow(testing)/2]
+
+```
+Step 4:  Replaced remaining occurences of NA with 0
+```{r}
+     trainingpruned[is.na(trainingpruned)]<-0
+     testingpruned[is.na(testingpruned)]<-0
+```
+
+Step 5: Removed the Redundant date columns (3,5) and the first column which was for SI
+```{r}
+trainingpruned<-trainingpruned[,c(-1,-3,-5)]
+testingpruned<-testingpruned[,c(-1,-3,-5)]
+```
+
+Step 6: Split the data into training data into subsets of trainingset and validationset:
+```{r}
+library(caret)
+intrain<-createDataPartition(trainingpruned$classe, p=0.8, list=FALSE)
+trainingset<-trainingpruned[intrain,]
+validationset<-trainingpruned[-intrain,]
+```
+
+Step 7: Build a model
+
+The model was build using the following code: 
+```{r}
+gbmmodel<-train(trainingset$classe~.,data=trainingset, method="gbm")
+```
+
+Step 8: Cross Validate using the validationSet
+```{r}
+gbmvalidationpredict<-predict(gbmmodel, validationset, type="raw")
+table(validationset$classe,gbmvalidationpredict)
+```
+
+Step 9: Calculate out of sample error
+```{r}
+t<-table(validationset$classe,gbmvalidationpredict)
+denominator<-sum(t)
+diag(t)<-0
+numerator <-sum(t)
+outofsampleerror = numerator*100/denominator
+outofsampleerror
+```
+
+Step 8: Predict the testing set
+
+```{r}
+gbmTestingpredict<-predict(gbmmodel, testingpruned, type="raw")
+gbmTestingpredict
+```
